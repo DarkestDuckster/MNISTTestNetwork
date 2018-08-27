@@ -1,0 +1,26 @@
+#ifndef __CUDA_METHODS_H__
+#define __CUDA_METHODS_H__
+
+#define CUDA_ERR_CHECK(ret) \
+{ \
+  const cudaError_t error = ret; \
+  if (error != cudaSuccess) { \
+    printf("cuda Error! %s:%d\n", __FILE__, __LINE__); \
+    printf("#%d: %s\n", error, cudaGetErrorString(error)); \
+    exit(EXIT_FAILURE); \
+  } \
+} \
+
+
+typedef struct _Cuda_Queue_Element
+{
+  _Cuda_Queue_Element *next;
+  void *ptr;
+} CudaQueueElement;
+
+__global__ void initializeMemory(float *dst, int size, float val);
+void *getCudaPointer(size_t size);
+void destroyCudaPointers(void);
+int returnDimensionSize(int input_size, int padding, int kernel_size, int stride);
+
+#endif

@@ -1,0 +1,12 @@
+#ifndef __CONVMODELS_H__
+#define __CONVMODELS_H__
+
+#include "convmethods.hu"
+
+typedef struct _Convolutional_Network
+{
+  void *in, *out, *weights;
+  ConvInfo *convolution;
+}
+
+#endif

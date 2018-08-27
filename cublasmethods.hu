@@ -1,0 +1,18 @@
+#ifndef __CUBLAS_METHODS_H__
+#define __CUBLAS_METHODS_H__
+
+#include <cublas_v2.h>
+
+#define CUBLAS_ERR_CHECK (ret) \
+{ \
+  const cublasStatus_t error = ret; \
+  if (error != CUBLAS_STATUS_SUCCESS) { \
+    printf("cublas error! %s:%d\n", __FILE__, __LINE__); \
+    printf("#%d: no cublas error strings.\n", error); \
+    exit(EXIT_FAILURE); \
+  } \
+} \
+
+void cublasDot(cublasHandle_t handle, void *A, void *B, void *out);
+
+#endif

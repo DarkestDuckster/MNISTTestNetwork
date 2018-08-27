@@ -1,0 +1,20 @@
+
+# Ignore binary files
+*.exe
+*.o
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Python
+
+__pycache__*
+*.so
+
+# Build Files
+objs/
+
+# Data Files
+MNIST-data/
+
+

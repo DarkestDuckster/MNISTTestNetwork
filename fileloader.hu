@@ -1,0 +1,20 @@
+#ifndef __FILE_LOADER_H__
+#define __FILE_LOADER_H__
+
+extern const char *folder;
+extern const char *test_images;
+extern const char *test_labels;
+
+enum filenums
+{
+  TEST_IMAGES,
+  TEST_LABELS,
+};
+
+int isLittleEndian();
+char *getFilename(int filenum);
+void convertToLittleEndian(int *val);
+int labelFile(int filenum);
+void *readFile(int filenum);
+
+#endif
