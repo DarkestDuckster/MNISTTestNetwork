@@ -11,15 +11,26 @@
   } \
 } \
 
+typedef void (*Destructor) (void *element)
 
 typedef struct _Cuda_Queue_Element
 {
   _Cuda_Queue_Element *next;
-  void *ptr;
+  void *element;
+  Destructor *destructor_pointer;
 } CudaQueueElement;
 
+
+typedef struct _Cuda_Matrix
+{
+  void *ptr;
+  int num_dimensions, *dimension_sizes;
+} CudaMatrix;
+
 __global__ void initializeMemory(float *dst, int size, float val);
-void *getCudaPointer(size_t size);
+void addCudaElement(void *element, Destructor destructor_pointer);
+CudaMatrix *createCudaMatrix(int num_dimensions, int *dimension_sizes);
+void destroyCudaMatrix(void *matrix);
 void destroyCudaPointers(void);
 int returnDimensionSize(int input_size, int padding, int kernel_size, int stride);
 
