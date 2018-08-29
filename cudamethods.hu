@@ -11,26 +11,41 @@
   } \
 } \
 
-typedef void (*Destructor) (void *element)
+typedef void (*Destructor) (void *element);
 
 typedef struct _Cuda_Queue_Element
 {
   _Cuda_Queue_Element *next;
   void *element;
-  Destructor *destructor_pointer;
+  Destructor destructor_pointer;
 } CudaQueueElement;
 
 
 typedef struct _Cuda_Matrix
 {
-  void *ptr;
+  float *ptr;
   int num_dimensions, *dimension_sizes;
+  int size;
 } CudaMatrix;
 
-__global__ void initializeMemory(float *dst, int size, float val);
+__global__ void initializeMemory(float *dst, int size, float constant_val = 0, float scaling_val = 0);
+void initializeCudaMatrix(CudaMatrix *matrix, float constant_val = 0, float scaling_val = 0);
+void printCudaMatrix(CudaMatrix *matrix);
+
 void addCudaElement(void *element, Destructor destructor_pointer);
+
+
 CudaMatrix *createCudaMatrix(int num_dimensions, int *dimension_sizes);
+CudaMatrix *createNdCudaMatrix(int n, ...);
+CudaMatrix *create1dCudaMatrix(int a);
+CudaMatrix *create2dCudaMatrix(int a, int b);
+CudaMatrix *create2dCudaMatrix(int a, int b, int c);
+CudaMatrix *create4dCudaMatrix(int a, int b, int c, int d);
+void *createCudaMemory(size_t size);
+
+
 void destroyCudaMatrix(void *matrix);
+void destroyCudaMemory(void *ptr);
 void destroyCudaPointers(void);
 int returnDimensionSize(int input_size, int padding, int kernel_size, int stride);
 

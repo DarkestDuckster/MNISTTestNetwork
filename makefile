@@ -5,7 +5,7 @@ LIBS = -lcublas -lcudnn
 HEADERS = fileloader.hu
 
 ODIR = objs
-_OBJS = cudamethods.o SMem.o fileloader.o convmethods.o
+_OBJS = cudamethods.o SMem.o fileloader.o convmethods.o cublasmethods.o
 OBJS = $(patsubst %, $(ODIR)/%, $(_OBJS))
 
 $(ODIR)/%.o: %.cu $(HEADERS)

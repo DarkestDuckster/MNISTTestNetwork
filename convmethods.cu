@@ -24,21 +24,7 @@ findBestAlgorithm(ConvInfo *network, cudnnHandle_t handle, int algorithms_to_sea
                   performance_results
   ));
 
-  printf("%d Algorithms Returned\n",returned_algorithms);
-  {
-    int i;
-    for (i = 0; i < returned_algorithms; i++) {
-      if (performance_results[i].status != CUDNN_STATUS_SUCCESS) {
-        printf("Algorithm%d Error: %s\n", i, cudnnGetErrorString(performance_results[i].status));
-      }
-      else {
-        printf("Algorithm %d took %fs to finish\n", i, performance_results[i].time);
-        printf("Required %ld bytes of workspace\n", performance_results[i].memory);
-      }
-    }
-  }
-  //network->algorithm = performance_results[0].algo;
-  network->algorithm = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
+  network->algorithm = performance_results[0].algo;
   CUDNN_ERR_CHECK(cudnnGetConvolutionForwardWorkspaceSize(
                   handle,
                   network->in,
@@ -48,7 +34,7 @@ findBestAlgorithm(ConvInfo *network, cudnnHandle_t handle, int algorithms_to_sea
                   network->algorithm,
                   &network->workspace.size
   ));
-  printf("Fastest algorithm requires %ld bytes of space\n", network->workspace.size);
+  network->workspace.workspace_pointer = createCudaMemory(network->workspace.size);
   free(performance_results);
 }
 
@@ -72,53 +58,66 @@ destroyPool(PoolInfo *pool)
   CUDNN_ERR_CHECK(cudnnDestroyPoolingDescriptor(pool->pooling));
 }
 
-void
-forwardNetwork(ConvInfo *network, cudnnHandle_t handle, void *in, void *weights, void *bias, void *output)
+cudnnStatus_t
+forwardPool(PoolInfo *pool, cudnnHandle_t handle)
+{
+  float alpha = 1.0, beta = 0.0;
+  return cudnnPoolingForward(
+      handle,
+      pool->pooling,
+      &alpha,
+      pool->in,
+      pool->input_matrix->ptr,
+      &beta,
+      pool->out,
+      pool->output_matrix->ptr
+  );
+}
+
+cudnnStatus_t
+forwardNetwork(ConvInfo *network, cudnnHandle_t handle)
 {
   float alpha1 = 1.0, alpha2 = 0.0;
-  CUDNN_ERR_CHECK(cudnnConvolutionBiasActivationForward(
+  return cudnnConvolutionBiasActivationForward(
       handle,
       &alpha1,
       network->in,
-      in,
+      network->input_matrix->ptr,
       network->filter,
-      weights,
+      network->weights->ptr,
       network->convolution,
       network->algorithm,
       network->workspace.workspace_pointer,
       network->workspace.size,
       &alpha2,
       network->out,
-      output,
+      network->output_matrix->ptr,
       network->bias,
-      bias,
+      network->biases->ptr,
       network->activation,
       network->out,
-      output
-    ));
+      network->output_matrix->ptr
+  );
 }
 
-void
-forwardPool(PoolInfo *pool, cudnnHandle_t handle, void *in, void *out)
+CudaMatrix *
+getFilterOutput(CudaMatrix *in, int out_channels, int filter_size, int padding_size, int strides)
 {
-  float alpha = 1.0, beta = 0.0;
-  CUDNN_ERR_CHECK(cudnnPoolingForward(
-      handle,
-      pool->pooling,
-      &alpha,
-      pool->in,
-      in,
-      &beta,
-      pool->out,
-      out
-    ));
+  int width = in->dimension_sizes[3], height = in->dimension_sizes[2];
+  int new_width = ceil((width + padding_size * 2 - (filter_size - 1)) / strides);
+  int new_height = ceil((height + padding_size * 2 - (filter_size - 1)) / strides);
+  CudaMatrix *ret = create4dCudaMatrix(in->dimension_sizes[0], out_channels, new_width, new_height);
+  return ret;
 }
+
 
 PoolInfo *
-setupPoolInfo(int channels, int input_width, int input_height, int batch_size, int pool_size, int padding_size, int strides)
+setupPoolInfo(CudaMatrix *input, int pool_size, int padding_size, int stride)
 {
-  if (padding_size != 0) printf("Still not accounting for padding sizes!\n");
-  PoolInfo *ret = (PoolInfo *) malloc(sizeof(PoolInfo));
+  CudaMatrix *output = getFilterOutput(input, input->dimension_sizes[1], pool_size, padding_size, stride);
+  PoolInfo *ret = (PoolInfo*) malloc(sizeof *ret);
+  ret->input_matrix = input;
+  ret->output_matrix = output;
   CUDNN_ERR_CHECK(cudnnCreatePoolingDescriptor(&ret->pooling));
   CUDNN_ERR_CHECK(cudnnSetPooling2dDescriptor(
                   ret->pooling,
@@ -126,66 +125,71 @@ setupPoolInfo(int channels, int input_width, int input_height, int batch_size, i
                   CUDNN_NOT_PROPAGATE_NAN,
                   pool_size, pool_size,
                   padding_size, padding_size,
-                  strides, strides
+                  stride, stride
   ));
   CUDNN_ERR_CHECK(cudnnCreateTensorDescriptor(&ret->in));
   CUDNN_ERR_CHECK(cudnnSetTensor4dDescriptor(
                   ret->in,
                   CUDNN_TENSOR_NCHW,
                   CUDNN_DATA_FLOAT,
-                  batch_size,
-                  channels,
-                  input_height,
-                  input_width
+                  input->dimension_sizes[0],
+                  input->dimension_sizes[1],
+                  input->dimension_sizes[2],
+                  input->dimension_sizes[3]
   ));
   CUDNN_ERR_CHECK(cudnnCreateTensorDescriptor(&ret->out));
   CUDNN_ERR_CHECK(cudnnSetTensor4dDescriptor(
                   ret->out,
                   CUDNN_TENSOR_NCHW,
                   CUDNN_DATA_FLOAT,
-                  batch_size,
-                  channels,
-                  ceil((input_height - pool_size - 1) / strides),
-                  ceil((input_width - pool_size - 1) / strides)
+                  output->dimension_sizes[0],
+                  output->dimension_sizes[1],
+                  output->dimension_sizes[2],
+                  output->dimension_sizes[3]
   ));
   return ret;
 }
 
 ConvInfo *
-setupNetworkInfo(int in_channels, int out_channels, int image_width, int image_height,
-                      int batch_size, int kernel_size, int padding_size, int stride)
+setupNetworkInfo(CudaMatrix *input, int out_channels, int kernel_size, int padding_size, int stride)
 {
-  if (stride != 1) printf("Warning! Stride not implemented.\n");
-  ConvInfo *ret = (ConvInfo *) malloc(sizeof(ConvInfo));
+  CudaMatrix *output = getFilterOutput(input, out_channels, kernel_size, padding_size, stride);
+  CudaMatrix *weights = create4dCudaMatrix(output->dimension_sizes[1], input->dimension_sizes[1], kernel_size, kernel_size);
+  CudaMatrix *biases = create4dCudaMatrix(1, output->dimension_sizes[1], 1, 1);
+  ConvInfo *ret = (ConvInfo*) malloc(sizeof *ret);
+  ret->input_matrix = input;
+  ret->output_matrix = output;
+  ret->weights = weights;
+  ret->biases = biases;
   CUDNN_ERR_CHECK(cudnnCreateTensorDescriptor(&ret->in));
   CUDNN_ERR_CHECK(cudnnSetTensor4dDescriptor(
                   ret->in,
                   CUDNN_TENSOR_NCHW,
                   CUDNN_DATA_FLOAT,
-                  batch_size,
-                  in_channels,
-                  image_height,
-                  image_width
+                  input->dimension_sizes[0],
+                  input->dimension_sizes[1],
+                  input->dimension_sizes[2],
+                  input->dimension_sizes[3]
   ));
   CUDNN_ERR_CHECK(cudnnCreateTensorDescriptor(&ret->out));
   CUDNN_ERR_CHECK(cudnnSetTensor4dDescriptor(
                   ret->out,
                   CUDNN_TENSOR_NCHW,
                   CUDNN_DATA_FLOAT,
-                  batch_size,
-                  out_channels,
-                  image_height,
-                  image_width
+                  output->dimension_sizes[0],
+                  output->dimension_sizes[1],
+                  output->dimension_sizes[2],
+                  output->dimension_sizes[3]
   ));
   CUDNN_ERR_CHECK(cudnnCreateFilterDescriptor(&ret->filter));
   CUDNN_ERR_CHECK(cudnnSetFilter4dDescriptor(
                   ret->filter,
                   CUDNN_DATA_FLOAT,
                   CUDNN_TENSOR_NCHW,
-                  out_channels,
-                  in_channels,
-                  kernel_size,
-                  kernel_size
+                  weights->dimension_sizes[0],
+                  weights->dimension_sizes[1],
+                  weights->dimension_sizes[2],
+                  weights->dimension_sizes[3]
   ));
   CUDNN_ERR_CHECK(cudnnCreateConvolutionDescriptor(&ret->convolution));
   CUDNN_ERR_CHECK(cudnnSetConvolution2dDescriptor(
@@ -202,10 +206,10 @@ setupNetworkInfo(int in_channels, int out_channels, int image_width, int image_h
                   ret->bias,
                   CUDNN_TENSOR_NCHW,
                   CUDNN_DATA_FLOAT,
-                  1,
-                  out_channels,
-                  1,
-                  1
+                  biases->dimension_sizes[0],
+                  biases->dimension_sizes[1],
+                  biases->dimension_sizes[2],
+                  biases->dimension_sizes[3]
   ));
   CUDNN_ERR_CHECK(cudnnCreateActivationDescriptor(&ret->activation));
   CUDNN_ERR_CHECK(cudnnSetActivationDescriptor(

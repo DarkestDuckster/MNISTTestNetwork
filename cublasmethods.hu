@@ -2,8 +2,9 @@
 #define __CUBLAS_METHODS_H__
 
 #include <cublas_v2.h>
+#include "cudamethods.hu"
 
-#define CUBLAS_ERR_CHECK (ret) \
+#define CUBLAS_ERR_CHECK(ret) \
 { \
   const cublasStatus_t error = ret; \
   if (error != CUBLAS_STATUS_SUCCESS) { \
@@ -13,6 +14,18 @@
   } \
 } \
 
-void cublasDot(cublasHandle_t handle, void *A, void *B, void *out);
+__global__ void naive_softmax_cross_entropy(float *in, int size, float *out);
+__global__ void naive_sum(float *in, int size, float *out);
+CudaMatrix *getMatrixSum(CudaMatrix *input);
+
+typedef struct _Dense_Info
+{
+  CudaMatrix *input_matrix, *output_matrix;
+  CudaMatrix *weights, *biases;
+} DenseInfo;
+
+DenseInfo *setupDenseInfo(CudaMatrix *input, int output_size);
+void forwardDense(DenseInfo *dense, cublasHandle_t handle);
+
 
 #endif

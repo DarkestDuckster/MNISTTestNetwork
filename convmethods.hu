@@ -1,6 +1,8 @@
 #ifndef __CONVMETHODS_H__
 #define __CONVMETHODS_H__
 
+#include "cudamethods.hu"
+
 #define CUDNN_ERR_CHECK(ret) \
 { \
   const cudnnStatus_t error = ret; \
@@ -26,41 +28,47 @@ typedef struct _Convolutional_Info
   WorkspaceInfo workspace;
   cudnnTensorDescriptor_t bias;
   cudnnActivationDescriptor_t activation;
+  CudaMatrix *input_matrix, *output_matrix;
+  CudaMatrix *weights, *biases;
 } ConvInfo;
 
 typedef struct _Pooling_Info
 {
   cudnnTensorDescriptor_t in, out;
   cudnnPoolingDescriptor_t pooling;
+  CudaMatrix *input_matrix, *output_matrix;
 } PoolInfo;
 
+typedef struct _Softmax_Info
+{
+  cudnnSoftmaxAlgorithm_t algorithm;
+  cudnnSoftmaxMode_t mode;
+  cudnnTensorDescriptor_t in, out;
+} SoftmaxInfo;
 
 ConvInfo *setupNetworkInfo(
-    int             in_channels,
+    CudaMatrix *input,
     int             out_channels,
-    int             image_width,
-    int             image_height,
-    int             batch_size,
     int             kernel_size,
     int             padding_size,
     int             strides
   );
 
 PoolInfo *setupPoolInfo(
-    int             channels,
-    int             input_width,
-    int             input_height,
-    int             batch_size,
+    CudaMatrix *input,
     int             pool_size,
     int             padding_size,
-    int             strides
+    int             stride
   );
 
-void findBestAlgorithm(ConvInfo *network, cudnnHandle_t handle, int algorithms_to_search);
-void destroyPool(PoolInfo *pool);
-void forwardPool(PoolInfo *pool, cudnnHandle_t handle, void *in, void *out);
 
+
+CudaMatrix *getFilterOutput(CudaMatrix *in, int out_channels, int filter_size, int padding_size, int strides);
+
+void findBestAlgorithm(ConvInfo *network, cudnnHandle_t handle, int algorithms_to_search);
 void destroyNetwork(ConvInfo *network);
-void forwardNetwork(ConvInfo *network, cudnnHandle_t handle, void *in, void *weights, void *bias, void *output);
+void destroyPool(PoolInfo *pool);
+cudnnStatus_t forwardNetwork(ConvInfo *network, cudnnHandle_t handle);
+cudnnStatus_t forwardPool(PoolInfo *network, cudnnHandle_t handle);
 
 #endif
