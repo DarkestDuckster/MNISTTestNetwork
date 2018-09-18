@@ -16,6 +16,15 @@ initializeMemory(float *dst, int size, float constant_val, float scaling_val)
   }
 }
 
+__global__ void
+initialize2dMemory(float *dst, int axis_0, int axis_1, float constant_val, float scaling_val)
+{
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+  if (!(x < axis_0 && y < axis_1)) return;
+  dst[y * axis_0 + x] = constant_val + y * axis_0 * scaling_val + x * scaling_val;
+}
+
 void
 initializeCudaMatrix(CudaMatrix *matrix, float constant_val, float scaling_val)
 {
@@ -23,16 +32,53 @@ initializeCudaMatrix(CudaMatrix *matrix, float constant_val, float scaling_val)
 }
 
 void
+initialize2dCudaMatrix(CudaMatrix *matrix, float constant_val, float scaling_val)
+{
+  int ax_0 = matrix->dimension_sizes[0];
+  int ax_1 = matrix->dimension_sizes[1];
+
+  dim3 block_siz (32, 32);
+  dim3 block_num (ceil(ax_1 / 32.0), ceil(ax_0 / 32.0));
+
+  initialize2dMemory<<<block_num, block_siz>>>(matrix->ptr, ax_0, ax_1, constant_val, scaling_val);
+}
+
+int
+checkEqualCudaMatrices(CudaMatrix *A, CudaMatrix *B)
+{
+  if (A->num_dimensions != B->num_dimensions) return 0;
+  for (int i = 0; i < A->num_dimensions; i++) {
+    if (A->dimension_sizes[i] != B->dimension_sizes[1]) return 0;
+  }
+  float *A_tmp, *B_tmp;
+  A_tmp = (float*) malloc(A->size * sizeof *A_tmp);
+  B_tmp = (float*) malloc(B->size * sizeof *B_tmp);
+  CUDA_ERR_CHECK(cudaMemcpy(A_tmp, A->ptr, A->size * sizeof *A->ptr, cudaMemcpyDeviceToHost));
+  CUDA_ERR_CHECK(cudaMemcpy(B_tmp, B->ptr, B->size * sizeof *B->ptr, cudaMemcpyDeviceToHost));
+
+  for (int i = 0; i < A->size; i++) {
+    if (A_tmp[i] != B_tmp[i]) return 0;
+  }
+
+  free(A_tmp); free(B_tmp);
+  return 1;
+}
+
+void
 printCudaMatrix(CudaMatrix *matrix)
 {
+  if (matrix == NULL) {
+    printf("Empty Matrix\n");
+    return;
+  }
   int n = matrix->dimension_sizes[0];
   int m = matrix->num_dimensions == 2 ? matrix->dimension_sizes[1] : 1;
   float *tmp = (float*) malloc(matrix->size * sizeof *tmp);
   CUDA_ERR_CHECK(cudaMemcpy(tmp, matrix->ptr, matrix->size * sizeof *matrix->ptr, cudaMemcpyDeviceToHost));
   printf("Printing CudaMatrix %p with sizes %dx%d\n",matrix, n, m);
-  for (int i = 0; i < m; i++) {
-    for (int j = 0; j < n; j++) {
-      printf("%.3f, ",tmp[i * n + j]);
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < m; j++) {
+      printf("%.3f, ",tmp[i * m + j]);
     }
     printf("\n");
   }
@@ -81,6 +127,17 @@ createNdCudaMatrix(int n, ...)
   }
   va_end(args);
   CudaMatrix *ret = createCudaMatrix(n, dims);
+  return ret;
+}
+
+CudaMatrix *
+createCudaMatrixLike(CudaMatrix *matrix)
+{
+  int dims = matrix->num_dimensions;
+  int *dim = (int*) malloc(dims * sizeof *dim);
+  for (int i = 0 ; i < dims; i++)
+    dim[i] = matrix->dimension_sizes[i];
+  CudaMatrix *ret = createCudaMatrix(dims, dim);
   return ret;
 }
 

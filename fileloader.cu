@@ -89,7 +89,7 @@ readFile(int filenum)
   size_t matrix_size = 1;
   for (i = 0; i < num_dimensions; i++) {
     convertToLittleEndian(&dimensions[i]);
-    printf("Dim%d Length=%d\n", i, dimensions[i]);
+    printf("Dim %d has length=%d\n", i, dimensions[i]);
     matrix_size *= dimensions[i];
   }
   printf("Total size is %ld\n", matrix_size);
@@ -100,9 +100,9 @@ readFile(int filenum)
   fread(dst, sizeof(unsigned char), matrix_size, fp);
   float *tmp;
   tmp = (float *) malloc(sizeof(float) * matrix_size
-                        * (labelFile(filenum) ? 10 : 1));
+                        * (labelFile(filenum) && 0 ? 10 : 1));
   for (i = 0; i < matrix_size; i++) {
-    if (labelFile(filenum)) {
+    if (labelFile(filenum) && 0) {
       tmp[i*10 + (int) dst[i]] = 1;
     }
     else {

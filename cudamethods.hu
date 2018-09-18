@@ -29,13 +29,17 @@ typedef struct _Cuda_Matrix
 } CudaMatrix;
 
 __global__ void initializeMemory(float *dst, int size, float constant_val = 0, float scaling_val = 0);
+__global__ void initialize2dMemory(float *dst, int axis_0, int axis_1, float constant_val = 0, float scaling_val = 0);
 void initializeCudaMatrix(CudaMatrix *matrix, float constant_val = 0, float scaling_val = 0);
+void initialize2dCudaMatrix(CudaMatrix *matrix, float constant_val = 0, float scaling_val = 0);
 void printCudaMatrix(CudaMatrix *matrix);
+int checkEqualCudaMatrices(CudaMatrix *A, CudaMatrix *B);
 
 void addCudaElement(void *element, Destructor destructor_pointer);
 
 
 CudaMatrix *createCudaMatrix(int num_dimensions, int *dimension_sizes);
+CudaMatrix *createCudaMatrixLike(CudaMatrix *matrix);
 CudaMatrix *createNdCudaMatrix(int n, ...);
 CudaMatrix *create1dCudaMatrix(int a);
 CudaMatrix *create2dCudaMatrix(int a, int b);

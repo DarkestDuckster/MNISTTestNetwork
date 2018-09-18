@@ -46,6 +46,16 @@ typedef struct _Softmax_Info
   cudnnTensorDescriptor_t in, out;
 } SoftmaxInfo;
 
+typedef struct _Cross_Entropy_Info
+{
+  CudaMatrix *input_matrix, *output_matrix;
+  CudaMatrix *workspace;
+  CudaMatrix *backward_matrix;
+} CrossEntropyInfo;
+
+CrossEntropyInfo *setupCrossEntropyInfo(CudaMatrix *input);
+void forwardCrossEntropy(CrossEntropyInfo *cross_entropy, int class_id);
+
 ConvInfo *setupNetworkInfo(
     CudaMatrix *input,
     int             out_channels,
