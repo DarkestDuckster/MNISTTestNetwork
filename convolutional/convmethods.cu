@@ -1,9 +1,20 @@
 
 #include <stdio.h>
-#include <cudnn.h>
 #include "convmethods.hu"
 
 
+void
+setupTensorDescriptor(cudnnTensorDescriptor_t *tensor, int n, int c, int h, int w)
+{
+  CUDNN_ERR_CHECK(cudnnCreateTensorDescriptor(tensor));
+  CUDNN_ERR_CHECK(cudnnSetTensor4dDescriptor(
+                  *tensor,
+                  CUDNN_TENSOR_NCHW,
+                  CUDNN_DATA_FLOAT,
+                  n, c,
+                  h, w
+  ));
+}
 
 void
 findBestAlgorithm(ConvInfo *network, cudnnHandle_t handle, int algorithms_to_search)
@@ -127,26 +138,10 @@ setupPoolInfo(CudaMatrix *input, int pool_size, int padding_size, int stride)
                   padding_size, padding_size,
                   stride, stride
   ));
-  CUDNN_ERR_CHECK(cudnnCreateTensorDescriptor(&ret->in));
-  CUDNN_ERR_CHECK(cudnnSetTensor4dDescriptor(
-                  ret->in,
-                  CUDNN_TENSOR_NCHW,
-                  CUDNN_DATA_FLOAT,
-                  input->dimension_sizes[0],
-                  input->dimension_sizes[1],
-                  input->dimension_sizes[2],
-                  input->dimension_sizes[3]
-  ));
-  CUDNN_ERR_CHECK(cudnnCreateTensorDescriptor(&ret->out));
-  CUDNN_ERR_CHECK(cudnnSetTensor4dDescriptor(
-                  ret->out,
-                  CUDNN_TENSOR_NCHW,
-                  CUDNN_DATA_FLOAT,
-                  output->dimension_sizes[0],
-                  output->dimension_sizes[1],
-                  output->dimension_sizes[2],
-                  output->dimension_sizes[3]
-  ));
+  setupTensorDescriptor(&ret->in, input->dimension_sizes[0], input->dimension_sizes[1],
+                                  input->dimension_sizes[2], input->dimension_sizes[3]);
+  setupTensorDescriptor(&ret->out, output->dimension_sizes[0], output->dimension_sizes[1],
+                                   output->dimension_sizes[2], output->dimension_sizes[3]);
   return ret;
 }
 
@@ -161,26 +156,10 @@ setupNetworkInfo(CudaMatrix *input, int out_channels, int kernel_size, int paddi
   ret->output_matrix = output;
   ret->weights = weights;
   ret->biases = biases;
-  CUDNN_ERR_CHECK(cudnnCreateTensorDescriptor(&ret->in));
-  CUDNN_ERR_CHECK(cudnnSetTensor4dDescriptor(
-                  ret->in,
-                  CUDNN_TENSOR_NCHW,
-                  CUDNN_DATA_FLOAT,
-                  input->dimension_sizes[0],
-                  input->dimension_sizes[1],
-                  input->dimension_sizes[2],
-                  input->dimension_sizes[3]
-  ));
-  CUDNN_ERR_CHECK(cudnnCreateTensorDescriptor(&ret->out));
-  CUDNN_ERR_CHECK(cudnnSetTensor4dDescriptor(
-                  ret->out,
-                  CUDNN_TENSOR_NCHW,
-                  CUDNN_DATA_FLOAT,
-                  output->dimension_sizes[0],
-                  output->dimension_sizes[1],
-                  output->dimension_sizes[2],
-                  output->dimension_sizes[3]
-  ));
+  setupTensorDescriptor(&ret->in, input->dimension_sizes[0], input->dimension_sizes[1],
+                                  input->dimension_sizes[2], input->dimension_sizes[3]);
+  setupTensorDescriptor(&ret->out, output->dimension_sizes[0], output->dimension_sizes[1],
+                                   output->dimension_sizes[2], output->dimension_sizes[3]);
   CUDNN_ERR_CHECK(cudnnCreateFilterDescriptor(&ret->filter));
   CUDNN_ERR_CHECK(cudnnSetFilter4dDescriptor(
                   ret->filter,
@@ -201,16 +180,8 @@ setupNetworkInfo(CudaMatrix *input, int out_channels, int kernel_size, int paddi
                   CUDNN_DATA_FLOAT
   ));
   CUDNN_ERR_CHECK(cudnnSetConvolutionMathType(ret->convolution, CUDNN_TENSOR_OP_MATH));
-  CUDNN_ERR_CHECK(cudnnCreateTensorDescriptor(&ret->bias));
-  CUDNN_ERR_CHECK(cudnnSetTensor4dDescriptor(
-                  ret->bias,
-                  CUDNN_TENSOR_NCHW,
-                  CUDNN_DATA_FLOAT,
-                  biases->dimension_sizes[0],
-                  biases->dimension_sizes[1],
-                  biases->dimension_sizes[2],
-                  biases->dimension_sizes[3]
-  ));
+  setupTensorDescriptor(&ret->bias, biases->dimension_sizes[0], biases->dimension_sizes[1],
+                                      biases->dimension_sizes[2], biases->dimension_sizes[3]);
   CUDNN_ERR_CHECK(cudnnCreateActivationDescriptor(&ret->activation));
   CUDNN_ERR_CHECK(cudnnSetActivationDescriptor(
                   ret->activation,

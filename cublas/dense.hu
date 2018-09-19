@@ -1,0 +1,21 @@
+#ifndef __DENSE_H__
+#define __DENSE_H__
+
+#include "cublasmethods.hu"
+
+typedef struct _Dense_Info
+{
+  CudaMatrix *input_matrix, *output_matrix;
+  CudaMatrix *weights, *biases;
+  CudaMatrix *backward_matrix;
+} DenseInfo;
+
+
+__global__ void naive_bias_add(float *in, int size, float *bias);
+int checkBiasShape(CudaMatrix *A, CudaMatrix *bias);
+void addBias(CudaMatrix *input, CudaMatrix *bias);
+DenseInfo *setupDenseInfo(CudaMatrix *input, int output_size);
+void forwardDense(DenseInfo *dense, cublasHandle_t handle);
+void backwardDense(DenseInfo *dense, cublasHandle_t handle);
+
+#endif

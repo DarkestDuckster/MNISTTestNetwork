@@ -1,0 +1,24 @@
+#ifndef __CROSS_ENTROPY_H__
+#define __CROSS_ENTROPY_H__
+
+#include "convmethods.hu"
+
+typedef struct _Softmax_Info
+{
+  cudnnSoftmaxAlgorithm_t algorithm;
+  cudnnSoftmaxMode_t mode;
+  cudnnTensorDescriptor_t in, out;
+} SoftmaxInfo;
+
+typedef struct _Cross_Entropy_Info
+{
+  CudaMatrix *input_matrix, *output_matrix;
+  CudaMatrix *backward_matrix;
+  SoftmaxInfo softmax;
+} CrossEntropyInfo;
+
+CrossEntropyInfo *setupCrossEntropyInfo(CudaMatrix *input);
+void forwardCrossEntropy(CrossEntropyInfo *cross_entropy, cudnnHandle_t handle);
+void backwardCrossEntropy(CrossEntropyInfo *cross_entropy, int *one_hot_classes);
+
+#endif

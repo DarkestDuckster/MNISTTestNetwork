@@ -2,7 +2,8 @@
 #define __CUBLAS_METHODS_H__
 
 #include <cublas_v2.h>
-#include "cudamethods.hu"
+#include <cudamethods.hu>
+#include <stdio.h>
 
 #define CUBLAS_ERR_CHECK(ret) \
 { \
@@ -14,22 +15,9 @@
   } \
 } \
 
-__global__ void naive_matrix_transpose(float *input, int axis_0, int axis_1, float *output);
-CudaMatrix *transposeCudaMatrix(CudaMatrix *matrix);
-
 __device__ void warpReduce(volatile float *sdata, int tid, int bid, int size);
 __global__ void naive_sum(float *input, int size, float *out);
 CudaMatrix *getMatrixSum(CudaMatrix *input);
-
-typedef struct _Dense_Info
-{
-  CudaMatrix *input_matrix, *output_matrix;
-  CudaMatrix *weights, *biases;
-} DenseInfo;
-
-
-DenseInfo *setupDenseInfo(CudaMatrix *input, int output_size);
-void forwardDense(DenseInfo *dense, cublasHandle_t handle);
 
 
 #endif

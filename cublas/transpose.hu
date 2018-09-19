@@ -1,0 +1,11 @@
+#ifndef __TRANSPOSE_H__
+#define __TRANSPOSE_H__
+
+#include "cublasmethods.hu"
+
+
+// Currently only works for 32x32 matrix problems
+__global__ void naive_matrix_transpose(float *input, int axis_0, int axis_1, float *output);
+CudaMatrix *transposeCudaMatrix(CudaMatrix *matrix);
+
+#endif

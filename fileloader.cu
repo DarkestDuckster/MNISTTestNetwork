@@ -100,9 +100,9 @@ readFile(int filenum)
   fread(dst, sizeof(unsigned char), matrix_size, fp);
   float *tmp;
   tmp = (float *) malloc(sizeof(float) * matrix_size
-                        * (labelFile(filenum) && 0 ? 10 : 1));
+                        * (labelFile(filenum) ? 10 : 1));
   for (i = 0; i < matrix_size; i++) {
-    if (labelFile(filenum) && 0) {
+    if (labelFile(filenum)) {
       tmp[i*10 + (int) dst[i]] = 1;
     }
     else {

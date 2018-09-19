@@ -7,6 +7,37 @@
 CudaQueueElement *first = NULL;
 
 __global__ void
+inplace_add_arrays(float *A, float *B, int size)
+{
+  int bid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (!(bid < size)) return;
+  A[bid] = A[bid] + B[bid];
+  printf("New A is %f\n",A[bid]);
+}
+
+void
+inplaceAddMatrices(CudaMatrix *A, CudaMatrix *B)
+{
+  if(!equalMatrices(A, B)) {
+    printf("Error, matrices not equal.\n");
+    return;
+  }
+  int block_siz = 128;
+  int block_num = A->size / block_siz + 1;
+  inplace_add_arrays<<<block_num, block_siz>>>(A->ptr, B->ptr, A->size);
+}
+
+int
+equalMatrices(CudaMatrix *A, CudaMatrix *B)
+{
+  if (!(A->size == B->size)) return 0;
+  if (!(A->num_dimensions == B->num_dimensions)) return 0;
+  for (int i = 1; i < A->num_dimensions; i++)
+    if (!(A->dimension_sizes[i] == B->dimension_sizes[i])) return 0;
+  return 1;
+}
+
+__global__ void
 initializeMemory(float *dst, int size, float constant_val, float scaling_val)
 {
   int tid = threadIdx.x;
